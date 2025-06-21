@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WHD मुरबाड FAQ चॅटबॉट</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Segoe UI',sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;display:flex;justify-content:center;align-items:center;padding:20px}
+        .container{max-width:1400px;width:100%;display:grid;grid-template-columns:1fr 2fr 1fr;gap:20px;height:85vh}
+        .panel{background:rgba(255,255,255,0.95);border-radius:20px;padding:30px;box-shadow:0 20px 40px rgba(0,0,0,0.1);backdrop-filter:blur(10px);overflow-y:auto}
+        .admin-overlay{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(255,255,255,0.95);backdrop-filter:blur(10px);border-radius:20px;display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:10}
+        .admin-overlay.hidden{display:none}
+        .login-form{background:white;padding:40px;border-radius:15px;box-shadow:0 10px 30px rgba(0,0,0,0.2);text-align:center;max-width:300px;width:100%}
+        .login-form h3{color:#333;margin-bottom:20px;font-size:1.5rem}
+        .login-form input,.faq-form input,.faq-form textarea,.question-search input,.chat-input input{width:100%;padding:12px;margin-bottom:15px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;outline:none;transition:all 0.3s ease}
+        .login-form input:focus,.faq-form input:focus,.faq-form textarea:focus,.question-search input:focus,.chat-input input:focus{border-color:#667eea;box-shadow:0 0 0 3px rgba(102,126,234,0.1)}
+        .login-error{color:#ff6b6b;font-size:12px;margin-top:10px;display:none}
+        .admin-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+        .logout-btn{background:#ff6b6b;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:12px;transition:all 0.3s ease}
+        .logout-btn:hover{background:#ff5252;transform:translateY(-1px)}
+        .admin-content{display:none}
+        .admin-content.visible{display:block}
+        .admin-panel{position:relative}
+        .question-search{margin-bottom:20px}
+        .question-search input{border-radius:25px;font-size:16px}
+        .question-item{background:linear-gradient(45deg,#667eea,#764ba2);color:white;border-radius:15px;padding:15px;margin-bottom:10px;cursor:pointer;transition:all 0.3s ease;font-weight:500;text-align:center}
+        .question-item:hover{transform:translateY(-3px);box-shadow:0 10px 25px rgba(102,126,234,0.3)}
+        .question-item.hidden{display:none}
+        .chatbot-panel{display:flex;flex-direction:column}
+        h1,h2{color:#333;margin-bottom:20px;text-align:center}
+        h1{font-size:2rem;background:linear-gradient(45deg,#667eea,#764ba2);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        .faq-form{display:flex;flex-direction:column;gap:15px;margin-bottom:30px}
+        .faq-form textarea{resize:vertical;min-height:80px;margin-bottom:15px}
+        .btn{padding:12px 24px;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.3s ease;text-transform:uppercase;letter-spacing:0.5px}
+        .btn-primary{background:linear-gradient(45deg,#667eea,#764ba2);color:white}
+        .btn-primary:hover{transform:translateY(-2px);box-shadow:0 10px 20px rgba(102,126,234,0.3)}
+        .btn-danger{background:linear-gradient(45deg,#ff6b6b,#ee5a52);color:white;padding:6px 12px;font-size:12px}
+        .btn-danger:hover{transform:translateY(-1px);box-shadow:0 5px 15px rgba(255,107,107,0.3)}
+        .faq-list{max-height:400px;overflow-y:auto}
+        .faq-item{background:#f8f9fa;border-radius:10px;padding:15px;margin-bottom:10px;border-left:4px solid #667eea;transition:all 0.3s ease}
+        .faq-item:hover{transform:translateX(5px);box-shadow:0 5px 15px rgba(0,0,0,0.1)}
+        .faq-question{font-weight:600;color:#333;margin-bottom:8px}
+        .faq-answer{color:#666;font-size:14px;margin-bottom:10px}
+        .chat-container{flex:1;display:flex;flex-direction:column;background:#f8f9fa;border-radius:15px;overflow:hidden;margin-bottom:20px}
+        .chat-header{background:linear-gradient(45deg,#667eea,#764ba2);color:white;padding:20px;text-align:center;font-weight:600}
+        .chat-messages{flex:1;padding:20px;overflow-y:auto;max-height:400px}
+        .message{margin-bottom:15px;display:flex;align-items:flex-start;gap:10px}
+        .message.user{flex-direction:row-reverse}
+        .message-content{max-width:80%;padding:12px 16px;border-radius:20px;font-size:14px;line-height:1.4}
+        .message.bot .message-content{background:#e3f2fd;color:#1976d2;border-bottom-left-radius:5px}
+        .message.user .message-content{background:#667eea;color:white;border-bottom-right-radius:5px}
+        .message-avatar{width:35px;height:35px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+        .message.bot .message-avatar{background:#4caf50;color:white}
+        .message.user .message-avatar{background:#667eea;color:white}
+        .chat-input{display:flex;padding:20px;gap:10px;border-top:1px solid #e0e0e0}
+        .chat-input input{flex:1;border-radius:25px;margin-bottom:0}
+        .chat-input button{padding:12px 20px;background:linear-gradient(45deg,#667eea,#764ba2);color:white;border:none;border-radius:25px;cursor:pointer;font-weight:600;transition:all 0.3s ease}
+        .chat-input button:hover{transform:translateY(-2px);box-shadow:0 5px 15px rgba(102,126,234,0.3)}
+        .suggestions{display:flex;flex-wrap:wrap;gap:8px;padding:0 20px 20px}
+        .suggestion{background:rgba(102,126,234,0.1);color:#667eea;padding:8px 12px;border-radius:20px;font-size:12px;cursor:pointer;transition:all 0.3s ease;border:1px solid rgba(102,126,234,0.2)}
+        .suggestion:hover{background:#667eea;color:white;transform:translateY(-1px)}
+        .typing-indicator{display:flex;align-items:center;gap:5px;padding:12px 16px;background:#e3f2fd;border-radius:20px;border-bottom-left-radius:5px;max-width:80px;margin-bottom:15px}
+        .typing-dot{width:8px;height:8px;border-radius:50%;background:#1976d2;animation:typing 1.4s infinite ease-in-out}
+        .typing-dot:nth-child(1){animation-delay:-0.32s}
+        .typing-dot:nth-child(2){animation-delay:-0.16s}
+        @keyframes typing{0%,80%,100%{transform:scale(0.8);opacity:0.5}40%{transform:scale(1);opacity:1}}
+        @media (max-width:768px){.container{grid-template-columns:1fr;height:auto}.admin-panel{order:3}.questions-panel{order:2}.chatbot-panel{order:1;height:60vh}}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="admin-panel panel">
+            <div class="admin-overlay" id="adminOverlay">
+                <div class="login-form">
+                    <h3>🔒 अॅडमिन लॉगिन</h3>
+                    <input type="text" id="adminUsername" placeholder="वापरकर्ता नाव" />
+                    <input type="password" id="adminPassword" placeholder="पासवर्ड" />
+                    <button class="btn btn-primary" onclick="adminLogin()">लॉगिन करा</button>
+                    <div class="login-error" id="loginError">चुकीचे वापरकर्ता नाव किंवा पासवर्ड!</div>
+                </div>
+            </div>
+            <div class="admin-content" id="adminContent">
+                <div class="admin-header">
+                    <h2>🏭 प्रश्न व्यवस्थापन</h2>
+                    <button class="logout-btn" onclick="adminLogout()">लॉग आउट</button>
+                </div>
+                <div class="faq-form">
+                    <input type="text" id="questionInput" placeholder="प्रश्न टाका..." />
+                    <textarea id="answerInput" placeholder="उत्तर टाका..."></textarea>
+                    <button class="btn btn-primary" onclick="addFAQ()">प्रश्न जोडा</button>
+                </div>
+                <div class="faq-list" id="faqList"></div>
+            </div>
+        </div>
+
+        <div class="chatbot-panel panel">
+            <h1>🤖 WHD असिस्टंट</h1>
+            <div class="chat-container">
+                <div class="chat-header">तुम्हाला काही प्रश्न आहेत का?</div>
+                <div class="chat-messages" id="chatMessages">
+                    <div class="message bot">
+                        <div class="message-avatar">🏭</div>
+                        <div class="message-content">नमस्कार! मी तुमचा WHD मुरबाड प्लांट असिस्टंट आहे. WHD मुरबाड बद्दल काही प्रश्न विचारा! 🏭</div>
+                    </div>
+                </div>
+                <div class="suggestions">
+                    <div class="suggestion" onclick="sendMessage('कामाचे तास कोणते आहेत?')">कामाचे तास</div>
+                    <div class="suggestion" onclick="sendMessage('सुरक्षा नियम काय आहेत?')">सुरक्षा नियम</div>
+                    <div class="suggestion" onclick="sendMessage('कॅंटीनची सुविधा आहे का?')">कॅंटीन सुविधा</div>
+                    <div class="suggestion" onclick="clearChat()">चॅट साफ करा</div>
+                </div>
+                <div class="chat-input">
+                    <input type="text" id="userInput" placeholder="तुमचा प्रश्न इथे टाइप करा..." onkeypress="event.key==='Enter'&&sendUserMessage()" />
+                    <button onclick="sendUserMessage()">पाठवा</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="questions-panel panel">
+            <h2>📋 प्रश्न यादी</h2>
+            <div class="question-search">
+                <input type="text" id="searchInput" placeholder="शोधा..." oninput="searchQuestions()" />
+            </div>
+            <div id="questionsList"></div>
+        </div>
+    </div>
+
+    <script>
+        let isAdminLoggedIn = false;
+        const adminCredentials = { username: "ADMINKD55", password: "WHDMURBADKD55" };
+        let faqs = [
+            { question: "कामाचे तास कोणते आहेत?", answer: "WHD मुरबाड मध्ये कामाचे तास सकाळी 8:00 ते संध्याकाळी 6:00 पर्यंत आहेत. दुपारी 12:00 ते 1:00 लंच ब्रेक आहे." },
+            { question: "सुरक्षा नियम काय आहेत?", answer: "कामाच्या वेळी हेल्मेट, सेफ्टी शूज आणि सेफ्टी गॉगल्स घालणे बंधनकारक आहे. फॅक्टरीमध्ये धूम्रपान करणे मनाई आहे." },
+            { question: "कॅंटीनची सुविधा आहे का?", answer: "होय, आमच्या फॅक्टरीमध्ये स्वच्छ आणि आरोग्यदायी जेवणाची कॅंटीन सुविधा उपलब्ध आहे." }
+        ];
+
+        function adminLogin() {
+            const username = document.getElementById('adminUsername').value.trim();
+            const password = document.getElementById('adminPassword').value;
+            const loginError = document.getElementById('loginError');
+            
+            if (username === adminCredentials.username && password === adminCredentials.password) {
+                isAdminLoggedIn = true;
+                document.getElementById('adminOverlay').classList.add('hidden');
+                document.getElementById('adminContent').classList.add('visible');
+                loginError.style.display = 'none';
+                document.getElementById('adminUsername').value = '';
+                document.getElementById('adminPassword').value = '';
+                displayFAQs();
+            } else {
+                loginError.style.display = 'block';
+                document.getElementById('adminPassword').value = '';
+            }
+        }
+
+        function adminLogout() {
+            if (confirm('तुम्हाला खात्री आहे की लॉग आउट करायचे आहे?')) {
+                isAdminLoggedIn = false;
+                document.getElementById('adminOverlay').classList.remove('hidden');
+                document.getElementById('adminContent').classList.remove('visible');
+                document.getElementById('questionInput').value = '';
+                document.getElementById('answerInput').value = '';
+            }
+        }
+
+        function addFAQ() {
+            if (!isAdminLoggedIn) return alert('कृपया प्रथम अॅडमिन म्हणून लॉगिन करा!');
+            
+            const question = document.getElementById('questionInput').value.trim();
+            const answer = document.getElementById('answerInput').value.trim();
+            
+            if (question && answer) {
+                faqs.push({ question, answer });
+                document.getElementById('questionInput').value = '';
+                document.getElementById('answerInput').value = '';
+                displayFAQs();
+                displayQuestionsList();
+                alert('प्रश्न यशस्वीपणे जोडला गेला!');
+            } else {
+                alert('कृपया प्रश्न आणि उत्तर दोन्ही टाका!');
+            }
+        }
+
+        function deleteFAQ(index) {
+            if (!isAdminLoggedIn) return alert('तुम्हाला प्रश्न काढून टाकण्याची परवानगी नाही!');
+            
+            if (confirm(`तुम्हाला खात्री आहे की हा प्रश्न काढून टाकायचा आहे?\n\n"${faqs[index].question}"`)) {
+                faqs.splice(index, 1);
+                displayFAQs();
+                displayQuestionsList();
+                alert('प्रश्न यशस्वीपणे काढून टाकला गेला!');
+            }
+        }
+
+        function displayFAQs() {
+            if (!isAdminLoggedIn) return;
+            
+            const faqList = document.getElementById('faqList');
+            faqList.innerHTML = '';
+            
+            if (faqs.length === 0) {
+                faqList.innerHTML = '<div style="text-align:center;color:#666;padding:20px">कोणतेही प्रश्न उपलब्ध नाहीत</div>';
+                return;
+            }
+            
+            faqs.forEach((faq, index) => {
+                const faqDiv = document.createElement('div');
+                faqDiv.className = 'faq-item';
+                faqDiv.innerHTML = `
+                    <div class="faq-question">${faq.question}</div>
+                    <div class="faq-answer">${faq.answer}</div>
+                `;
+                
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'btn btn-danger';
+                deleteBtn.style.marginTop = '10px';
+                deleteBtn.innerHTML = '🗑️ काढून टाका';
+                deleteBtn.onclick = () => deleteFAQ(index);
+                
+                faqDiv.appendChild(deleteBtn);
+                faqList.appendChild(faqDiv);
+            });
+        }
+
+        function displayQuestionsList() {
+            const questionsList = document.getElementById('questionsList');
+            questionsList.innerHTML = faqs.length === 0 ? 
+                '<div style="text-align:center;color:#666;padding:20px">कोणतेही प्रश्न उपलब्ध नाहीत</div>' :
+                faqs.map(faq => `
+                    <div class="question-item" data-question="${faq.question.toLowerCase()}" onclick="selectQuestion('${faq.question.replace(/'/g, "\\'")}', '${faq.answer.replace(/'/g, "\\'")}')">
+                        ${faq.question}
+                    </div>
+                `).join('');
+        }
+
+        function selectQuestion(question, answer) {
+            addMessageToChat('user', question);
+            showTypingIndicator();
+            setTimeout(() => {
+                hideTypingIndicator();
+                addMessageToChat('bot', answer);
+            }, 800);
+        }
+
+        function sendMessage(message) {
+            document.getElementById('userInput').value = message;
+            sendUserMessage();
+        }
+
+        function sendUserMessage() {
+            const userInput = document.getElementById('userInput');
+            const message = userInput.value.trim();
+            
+            if (message) {
+                addMessageToChat('user', message);
+                userInput.value = '';
+                showTypingIndicator();
+                
+                setTimeout(() => {
+                    hideTypingIndicator();
+                    addMessageToChat('bot', findBestAnswer(message));
+                }, 1000);
+            }
+        }
+
+        function addMessageToChat(sender, message) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+            messageDiv.innerHTML = `
+                <div class="message-avatar">${sender === 'bot' ? '🏭' : '👤'}</div>
+                <div class="message-content">${message}</div>
+            `;
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function showTypingIndicator() {
+            const chatMessages = document.getElementById('chatMessages');
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message bot';
+            typingDiv.id = 'typingIndicator';
+            typingDiv.innerHTML = `
+                <div class="message-avatar">🏭</div>
+                <div class="typing-indicator">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
+            `;
+            chatMessages.appendChild(typingDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function hideTypingIndicator() {
+            const elem = document.getElementById('typingIndicator');
+            if (elem) elem.remove();
+        }
+
+        function findBestAnswer(userMessage) {
+            const message = userMessage.toLowerCase();
+            let bestMatch = null;
+            let bestScore = 0;
+            
+            faqs.forEach(faq => {
+                const score = calculateSimilarity(message, faq.question.toLowerCase());
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestMatch = faq;
+                }
+            });
+            
+            return bestScore > 0.3 ? bestMatch.answer : 
+                "माफ करा, मला या प्रश्नाचे उत्तर सापडले नाही. कृपया अधिक स्पष्ट प्रश्न विचारा किंवा उपलब्ध प्रश्न यादीतून निवडा.";
+        }
+
+        function calculateSimilarity(str1, str2) {
+            const words1 = str1.split(' ');
+            const words2 = str2.split(' ');
+            let matches = 0;
+            
+            words1.forEach(word1 => {
+                if (word1.length > 2) {
+                    words2.forEach(word2 => {
+                        if (word2.includes(word1) || word1.includes(word2)) matches++;
+                    });
+                }
+            });
+            
+            return matches / Math.max(words1.length, words2.length);
+        }
+
+        function searchQuestions() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+            document.querySelectorAll('.question-item').forEach(item => {
+                const questionText = item.getAttribute('data-question');
+                item.classList.toggle('hidden', searchTerm !== '' && !questionText.includes(searchTerm));
+            });
+        }
+
+        function clearChat() {
+            document.getElementById('chatMessages').innerHTML = `
+                <div class="message bot">
+                    <div class="message-avatar">🏭</div>
+                    <div class="message-content">नमस्कार! मी तुमचा WHD मुरबाड प्लांट असिस्टंट आहे. WHD मुरबाड बद्दल काही प्रश्न विचारा! 🏭</div>
+                </div>
+            `;
+        }
+
+        window.onload = () => displayQuestionsList();
+    </script>
+</body>
+</html>
