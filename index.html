@@ -126,14 +126,39 @@
         </div>
     </div>
 
-    <script>
+    
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyAu4KwMGCEec8Y7MXr3MqRW0cY_fNckSwY",
+    authDomain: "whd-chatbot.firebaseapp.com",
+    projectId: "whd-chatbot",
+    storageBucket: "whd-chatbot.firebasestorage.app",
+    messagingSenderId: "510703781822",
+    appId: "1:510703781822:web:b2a4b8f97f84636d4adbef"
+  };
+
+  // Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+</script>
+<script>
         let isAdminLoggedIn = false;
         const adminCredentials = { username: "ADMINKD55", password: "WHDMURBADKD55" };
-        let faqs = [
-            { question: "कामाचे तास कोणते आहेत?", answer: "WHD मुरबाड मध्ये कामाचे तास सकाळी 8:00 ते संध्याकाळी 6:00 पर्यंत आहेत. दुपारी 12:00 ते 1:00 लंच ब्रेक आहे." },
-            { question: "सुरक्षा नियम काय आहेत?", answer: "कामाच्या वेळी हेल्मेट, सेफ्टी शूज आणि सेफ्टी गॉगल्स घालणे बंधनकारक आहे. फॅक्टरीमध्ये धूम्रपान करणे मनाई आहे." },
-            { question: "कॅंटीनची सुविधा आहे का?", answer: "होय, आमच्या फॅक्टरीमध्ये स्वच्छ आणि आरोग्यदायी जेवणाची कॅंटीन सुविधा उपलब्ध आहे." }
-        ];
+        
+let faqs = [];
+
+async function loadFAQsFromFirebase() {
+    const snapshot = await db.collection("faqs").get();
+    faqs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    displayFAQs();
+    displayQuestionsList();
+}
+
 
         function adminLogin() {
             const username = document.getElementById('adminUsername').value.trim();
