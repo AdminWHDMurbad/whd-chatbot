@@ -189,23 +189,28 @@ async function loadFAQsFromFirebase() {
             }
         }
 
-        function addFAQ() {
-            if (!isAdminLoggedIn) return alert('कृपया प्रथम अॅडमिन म्हणून लॉगिन करा!');
-            
-            const question = document.getElementById('questionInput').value.trim();
-            const answer = document.getElementById('answerInput').value.trim();
-            
-            if (question && answer) {
-                faqs.push({ question, answer });
-                document.getElementById('questionInput').value = '';
-                document.getElementById('answerInput').value = '';
-                displayFAQs();
-                displayQuestionsList();
-                alert('प्रश्न यशस्वीपणे जोडला गेला!');
-            } else {
-                alert('कृपया प्रश्न आणि उत्तर दोन्ही टाका!');
-            }
+       async function addFAQ() {
+    if (!isAdminLoggedIn) return alert('कृपया प्रथम अॅडमिन म्हणून लॉगिन करा!');
+    
+    const question = document.getElementById('questionInput').value.trim();
+    const answer = document.getElementById('answerInput').value.trim();
+    
+    if (question && answer) {
+        try {
+            await db.collection("faqs").add({ question, answer });
+            document.getElementById('questionInput').value = '';
+            document.getElementById('answerInput').value = '';
+            alert('प्रश्न यशस्वीपणे Firebase मध्ये जोडला गेला!');
+            loadFAQsFromFirebase(); // reload from Firestore
+        } catch (error) {
+            console.error("Error adding FAQ:", error);
+            alert("प्रश्न जतन करताना त्रुटी आली.");
         }
+    } else {
+        alert('कृपया प्रश्न आणि उत्तर दोन्ही टाका!');
+    }
+}
+
 
         function deleteFAQ(index) {
             if (!isAdminLoggedIn) return alert('तुम्हाला प्रश्न काढून टाकण्याची परवानगी नाही!');
@@ -372,8 +377,8 @@ async function loadFAQsFromFirebase() {
                 </div>
             `;
         }
+window.onload = () => loadFAQsFromFirebase();
 
-        window.onload = () => displayQuestionsList();
     </script>
 </body>
 </html>
